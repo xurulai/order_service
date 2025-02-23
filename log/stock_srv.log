@@ -1,0 +1,12 @@
+{"level":"INFO","time":"2025-02-22T17:05:32.164+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-22T17:06:20.932+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-22T17:07:06.478+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-22T17:07:27.657+0800","caller":"order_service/main.go:87","msg":"service start..."}
+{"level":"INFO","time":"2025-02-22T18:20:32.458+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-22T18:20:53.722+0800","caller":"order_service/main.go:87","msg":"service start..."}
+{"level":"INFO","time":"2025-02-22T18:28:01.086+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-22T18:28:22.321+0800","caller":"order_service/main.go:87","msg":"service start..."}
+{"level":"INFO","time":"2025-02-22T18:39:05.471+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-22T18:39:05.636+0800","caller":"order_service/main.go:87","msg":"service start..."}
+{"level":"INFO","time":"2025-02-22T19:25:07.780+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-22T19:25:07.848+0800","caller":"order_service/main.go:85","msg":"service start..."}

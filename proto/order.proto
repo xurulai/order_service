@@ -1,0 +1,73 @@
+syntax = "proto3";  // 指定使用 Protocol Buffers 的版本为 proto3
+
+package proto;  // 定义包名，用于区分不同的消息和服务
+
+import "goods.proto";  // 导入商品相关的消息定义
+import "stock.proto";
+
+option go_package = ".;proto";  // 指定生成的 Go 代码的包路径
+
+// Order 服务定义
+service Order {
+    // 创建订单
+    rpc CreateOrder(CreateOrderReq) returns (Response);
+
+    // 获取订单列表
+    rpc OrderList(OrderListReq) returns (OrderListResp);
+
+    // 查询订单详情
+    rpc OrderDetail(OrderDetailReq) returns (OrderDetailInfo);
+
+    // 更新订单状态
+    rpc UpdateOrderStatus(OrderStatus) returns (Response);
+}
+
+// 创建订单的请求消息
+message CreateOrderReq {
+    int64 goods_id = 1;  // 商品ID
+    int32 num = 2;       // 商品数量
+    int64 user_id = 3;   // 用户ID
+    string address = 4;  // 收货地址
+    string name = 5;     // 收货人姓名
+    string phone = 6;    // 收货人电话
+}
+
+// 查询订单列表的请求消息
+message OrderListReq {
+    int64 user_id = 1;    // 用户ID
+    int32 page_num = 2;   // 当前页码
+    int32 page_size = 3;  // 每页大小
+}
+
+// 查询订单列表的响应消息
+message OrderListResp {
+    int32 total = 1;  // 总记录数
+    repeated OrderInfo data = 2;  // 订单信息列表
+}
+
+// 订单信息
+message OrderInfo {
+    int64 order_id = 1;  // 订单ID
+    int64 user_id = 2;   // 用户ID
+    int32 status = 3;    // 订单状态（1: 待支付, 2: 已支付, 3: 已发货, 4: 已完成）
+    string pay_channel = 4;  // 支付渠道（如：支付宝、微信支付）
+    int64 pay_amount = 5;  // 支付金额（单位：分）
+    GoodsDetail goods_detail = 7;  // 订单中的商品详细信息
+}
+
+// 查询订单详情的请求消息
+message OrderDetailReq {
+    int64 order_id = 1;  // 订单ID
+    int64 user_id = 2;   // 用户ID
+}
+
+// 查询订单详情的响应消息
+message OrderDetailInfo {
+    OrderInfo order_info = 1;  // 订单基本信息
+}
+
+// 更新订单状态的请求消息
+message OrderStatus {
+    int64 order_id = 1;  // 订单ID
+    int32 status = 2;    // 新的订单状态
+}

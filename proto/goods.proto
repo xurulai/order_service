@@ -1,0 +1,57 @@
+syntax = "proto3";  // 指定使用的 Protobuf 语法版本为 proto3
+
+option go_package = ".;proto";  // 指定生成的 Go 代码所在的包路径
+
+package proto;  // 定义当前文件的包名，用于避免命名冲突
+
+
+// 定义一个名为 Goods 的服务
+service Goods {
+    // 定义一个 RPC 方法 GetGoodsByRoom，用于根据直播间获取商品列表
+    rpc GetGoodsByRoom(GetGoodsByRoomReq) returns (GoodsListResp);
+
+    // 定义一个 RPC 方法 GetGoodsDetail，用于获取商品详情页
+    rpc GetGoodsDetail(GetGoodsDetailReq) returns (GoodsDetail);
+}
+
+// 定义请求消息 GetGoodsByRoomReq，用于获取直播间商品列表
+message GetGoodsByRoomReq {
+    int64 UserId = 1;  // 用户 ID
+    int64 RoomId = 2;  // 直播间 ID
+}
+
+// 定义响应消息 GoodsListResp，用于返回商品列表
+message GoodsListResp {
+    int64 CurrentGoodsId = 1;  // 当前商品的 ID
+    repeated GoodsInfo Data = 2;  // 商品列表，包含多个 GoodsInfo 消息
+}
+
+// 定义商品列表页的数据结构 GoodsInfo
+message GoodsInfo {
+    int64 GoodsId = 1;         // 商品 ID
+    int64 CategoryId = 2;      // 分类 ID
+    int32 Status = 3;          // 商品状态
+    string Title = 4;          // 商品标题
+    string MarketPrice = 5;    // 市场价格
+    string Price = 6;          // 销售价格
+    string Brief = 7;          // 商品简介
+}
+
+// 定义请求消息 GetGoodsDetailReq，用于获取商品详情
+message GetGoodsDetailReq {
+    int64 GoodsId = 1;  // 商品 ID
+    int64 UserId = 2;   // 用户 ID
+}
+
+// 定义响应消息 GoodsDetail，用于返回商品详情
+message GoodsDetail {
+    int64 GoodsId = 1;          // 商品 ID
+    int64 CategoryId = 2;       // 分类 ID
+    int32 Status = 3;           // 商品状态
+    string Title = 4;           // 商品标题
+    string Code = 5;            // 商品编码
+    string BrandName = 6;       // 品牌名称
+    string MarketPrice = 7;     // 市场价格
+    string Price = 8;           // 销售价格
+    string Brief = 9;           // 商品简介
+}

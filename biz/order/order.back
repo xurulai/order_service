@@ -1,0 +1,73 @@
+package order
+
+import (
+	"context"
+	"strconv"
+
+	"order_service/dao/mysql"
+	"order_service/model"
+	"order_service/proto"
+	"order_service/rpc"
+	"order_service/third_party/snowflake"
+
+	"go.uber.org/zap"
+)
+
+// biz层业务代码
+// biz -> dao
+
+// 不加分布式事务实现创建订单
+
+func Create(ctx context.Context, param *proto.OrderReq) error {
+	// 1. 生成订单号
+	orderId := snowflake.GenID()
+	// 2. 查询商品金额（营销）- 》 RPC调用
+	// 每次请求的都去consul获取一个可用的商品服务地址
+	// 拿到地址创建RPC客户端去执行RPC调用
+	goodsDatail, err := rpc.GoodsCli.GetGoodsDetail(ctx, &proto.GetGoodsDetailReq{
+		GoodsId: param.GoodsId,
+		UserId:  param.UserId,
+	})
+	if err != nil {
+		zap.L().Error("GoodsCli.GetGoodsDetail failed", zap.Error(err))
+		return err
+	}
+	// 拿到商品的价格作为支付价格
+	payAmountStr := goodsDatail.Price 
+	payAmount, _ := strconv.ParseInt(payAmountStr, 10, 64)
+
+
+	// 3. 库存校验及扣减
+	// 每次请求的都去consul获取一个可用的库存服务地址
+	// 拿到地址创建RPC客户端去执行RPC调用
+	_, err = rpc.StockCli.ReduceStock(ctx, &proto.GoodsStockInfo{
+		GoodsId: param.GoodsId,
+		Num:     param.Num,
+	})
+	if err != nil {
+		zap.L().Error("StockCli.ReduceStock failed", zap.Error(err))
+		return err
+	}
+	// 4. 创建订单，用事务把创建订单和创建订单详情两个动作包起来
+	// 4.1 创建订单表
+	orderData := model.Order{
+		OrderId:        orderId,
+		UserId:         param.UserId,
+		PayAmount:      payAmount,
+		ReceiveAddress: param.Address,
+		ReceiveName:    param.Name,
+		ReceivePhone:   param.Phone,
+	}
+	// mysql.CreateOrder(ctx, &orderData)
+	// 4.2 创建订单详情表
+	orderDetail := model.OrderDetail{
+		OrderId: orderId,
+		UserId:  param.UserId,
+		GoodsId: param.GoodsId,
+		Num:     param.Num,
+	}
+	// mysql.CreateOrderDetail(ctx, &orderDetail)
+	// 事务
+
+	return mysql.CreateOrderWithTransation(ctx, &orderData, &orderDetail)
+}
