@@ -9,9 +9,8 @@ CREATE TABLE `xx_order_detail`(
                                  `user_id` BIGINT(20) UNSIGNED NOT NULL COMMENT '用户id',
                                  `order_id` BIGINT(20) UNSIGNED NOT NULL COMMENT '订单id',
                                  `goods_id` BIGINT(20) UNSIGNED NOT NULL COMMENT '商品id',
-                                 `title` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '名称',
-                                 `market_price` BIGINT(20) UNSIGNED NOT NULL DEFAULT '0' COMMENT '市场价/划线价（分）',
-                                 `price` VARCHAR(20) UNSIGNED NOT NULL DEFAULT '0' COMMENT '售价（分）',
+                                 `title` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '名称',                            
+                                 `price` BIGINT(20) UNSIGNED NOT NULL DEFAULT '0' COMMENT '售价（分）',
                                  `brief` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '简介',
                                  `num` BIGINT(20) UNSIGNED NOT NULL COMMENT '商品数量',
                                  `pay_amount` BIGINT(20) UNSIGNED NOT NULL DEFAULT '0' COMMENT '支付金额（分）',
@@ -19,3 +18,5 @@ CREATE TABLE `xx_order_detail`(
                                  INDEX (user_id),
                                  INDEX (is_del)
 )ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COMMENT = '订单商品表';
+
+`market_price` BIGINT(20) UNSIGNED NOT NULL DEFAULT '0' COMMENT '市场价/划线价（分）',

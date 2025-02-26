@@ -29,15 +29,15 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Order 服务定义
+// Order 鏈嶅姟瀹氫箟
 type OrderClient interface {
-	// 创建订单
-	CreateOrder(ctx context.Context, in *CreateOrderReq, opts ...grpc.CallOption) (*Response, error)
-	// 获取订单列表
+	// 鍒涘缓璁㈠崟
+	CreateOrder(ctx context.Context, in *CreateOrderReq, opts ...grpc.CallOption) (*CreateOrderRep, error)
+	// 鑾峰彇璁㈠崟鍒楄〃
 	OrderList(ctx context.Context, in *OrderListReq, opts ...grpc.CallOption) (*OrderListResp, error)
-	// 查询订单详情
+	// 鏌ヨ璁㈠崟璇︽儏
 	OrderDetail(ctx context.Context, in *OrderDetailReq, opts ...grpc.CallOption) (*OrderDetailInfo, error)
-	// 更新订单状态
+	// 鏇存柊璁㈠崟鐘舵€�
 	UpdateOrderStatus(ctx context.Context, in *OrderStatus, opts ...grpc.CallOption) (*Response, error)
 }
 
@@ -49,9 +49,9 @@ func NewOrderClient(cc grpc.ClientConnInterface) OrderClient {
 	return &orderClient{cc}
 }
 
-func (c *orderClient) CreateOrder(ctx context.Context, in *CreateOrderReq, opts ...grpc.CallOption) (*Response, error) {
+func (c *orderClient) CreateOrder(ctx context.Context, in *CreateOrderReq, opts ...grpc.CallOption) (*CreateOrderRep, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Response)
+	out := new(CreateOrderRep)
 	err := c.cc.Invoke(ctx, Order_CreateOrder_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -93,15 +93,15 @@ func (c *orderClient) UpdateOrderStatus(ctx context.Context, in *OrderStatus, op
 // All implementations must embed UnimplementedOrderServer
 // for forward compatibility.
 //
-// Order 服务定义
+// Order 鏈嶅姟瀹氫箟
 type OrderServer interface {
-	// 创建订单
-	CreateOrder(context.Context, *CreateOrderReq) (*Response, error)
-	// 获取订单列表
+	// 鍒涘缓璁㈠崟
+	CreateOrder(context.Context, *CreateOrderReq) (*CreateOrderRep, error)
+	// 鑾峰彇璁㈠崟鍒楄〃
 	OrderList(context.Context, *OrderListReq) (*OrderListResp, error)
-	// 查询订单详情
+	// 鏌ヨ璁㈠崟璇︽儏
 	OrderDetail(context.Context, *OrderDetailReq) (*OrderDetailInfo, error)
-	// 更新订单状态
+	// 鏇存柊璁㈠崟鐘舵€�
 	UpdateOrderStatus(context.Context, *OrderStatus) (*Response, error)
 	mustEmbedUnimplementedOrderServer()
 }
@@ -113,7 +113,7 @@ type OrderServer interface {
 // pointer dereference when methods are called.
 type UnimplementedOrderServer struct{}
 
-func (UnimplementedOrderServer) CreateOrder(context.Context, *CreateOrderReq) (*Response, error) {
+func (UnimplementedOrderServer) CreateOrder(context.Context, *CreateOrderReq) (*CreateOrderRep, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateOrder not implemented")
 }
 func (UnimplementedOrderServer) OrderList(context.Context, *OrderListReq) (*OrderListResp, error) {

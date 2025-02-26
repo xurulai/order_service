@@ -17,70 +17,78 @@ import (
 // biz -> dao
 
 // 不加分布式事务实现创建订单
-func Create(ctx context.Context, param *proto.CreateOrderReq) error {
+func Create(ctx context.Context, param *proto.CreateOrderReq) (*proto.CreateOrderRep, error) {
+
 	// 1. 生成订单号
-	orderId := snowflake.GenID() // 使用 Snowflake 算法生成全局唯一的订单号
+	orderId := snowflake.GenID()
 
 	// 2. 查询商品金额（营销）- RPC调用
-	// 每次请求都通过 Consul 获取一个可用的商品服务地址
-	// 然后通过 RPC 客户端调用商品服务的接口
 	goodsDetail, err := rpc.GoodsCli.GetGoodsDetail(ctx, &proto.GetGoodsDetailReq{
-		GoodsId: param.GoodsId, // 商品 ID
-		UserId:  param.UserId,  // 用户 ID
+		GoodsId: param.GoodsId,
+		UserId:  param.UserId,
 	})
-	if err != nil {
-		zap.L().Error("GoodsCli.GetGoodsDetail failed", zap.Error(err)) // 记录错误日志
-		return err                                                      // 如果调用失败，返回错误
+	if err != nil || goodsDetail == nil {
+		zap.L().Error("商品详情获取失败", zap.Error(err), zap.Any("resp", goodsDetail))
+		return &proto.CreateOrderRep{Success: false, Message: "商品服务不可用"}, nil
+	}
+	if goodsDetail.Price == "" {
+		return &proto.CreateOrderRep{Success: false, Message: "商品价格为空"}, nil
 	}
 
 	// 3. 计算支付金额：商品单价 × 购买数量
-	// 获取商品单价（字符串格式）
-	priceStr := goodsDetail.Price
-	price, err := strconv.ParseInt(priceStr, 10, 64) // 将价格转换为 int64 类型
+	// 3. 计算支付金额
+	price, err := strconv.ParseInt(goodsDetail.Price, 10, 64)
 	if err != nil {
-		zap.L().Error("strconv.ParseInt failed", zap.String("priceStr", priceStr), zap.Error(err))
-		return err
+		zap.L().Error("价格格式错误", zap.String("price", goodsDetail.Price), zap.Error(err))
+		return &proto.CreateOrderRep{Success: false, Message: "商品价格异常"}, nil
 	}
-
-	// 计算支付金额：单价 × 数量
 	payAmount := price * int64(param.Num)
 
-	// 3. 库存校验及扣减
-	// 每次请求都通过 Consul 获取一个可用的库存服务地址
-	// 然后通过 RPC 客户端调用库存服务的接口
+	// 4. 库存校验及扣减
 	_, err = rpc.StockCli.ReduceStock(ctx, &proto.ReduceStockInfo{
-		GoodsId: param.GoodsId,    // 商品 ID
-		Num:     int64(param.Num), // 扣减数量
-		OrderId: orderId,          //订单号
+		GoodsId: param.GoodsId,
+		Num:     int64(param.Num),
+		OrderId: orderId,
 	})
 	if err != nil {
-		zap.L().Error("StockCli.ReduceStock failed", zap.Error(err)) // 记录错误日志
-		return err                                                   // 如果调用失败，返回错误
+		zap.L().Error("库存扣减失败", zap.Error(err))
+		return &proto.CreateOrderRep{Success: false, Message: "库存不足"}, nil
 	}
 
-	// 4. 创建订单，用事务把创建订单和创建订单详情两个动作包起来
-	// 4.1 创建订单表
+	// 5. 创建订单，用事务把创建订单和创建订单详情两个动作包起来
 	orderData := model.Order{
-		OrderId:        orderId,       // 订单号
-		UserId:         param.UserId,  // 用户 ID
-		PayAmount:      payAmount,     // 支付金额
-		ReceiveAddress: param.Address, // 收货地址
-		ReceiveName:    param.Name,    // 收货人姓名
-		ReceivePhone:   param.Phone,   // 收货人电话
+		OrderId:        orderId,
+		UserId:         param.UserId,
+		PayAmount:      payAmount,
+		ReceiveAddress: param.Address,
+		ReceiveName:    param.Name,
+		ReceivePhone:   param.Phone,
 	}
 
-	// 4.2 创建订单详情表
 	orderDetail := model.OrderDetail{
-		OrderId: orderId,          // 订单号
-		UserId:  param.UserId,     // 用户 ID
-		GoodsId: param.GoodsId,    // 商品 ID
-		Num:     int64(param.Num), // 商品数量
-		Title: goodsDetail.Title,  //商品名称
-		Price: goodsDetail.Price,  //商品价格
-		Brief: goodsDetail.Brief,  //商品简介
-		PayAmount: payAmount,	   //支付金额
+		OrderId:   orderId,
+		UserId:    param.UserId,
+		GoodsId:   param.GoodsId,
+		Num:       int64(param.Num),
+		Title:     goodsDetail.Title,
+		Price:     price,
+		Brief:     goodsDetail.Brief,
+		PayAmount: payAmount,
 	}
 
-	// 事务操作：同时创建订单表和订单详情表
-	return mysql.CreateOrderWithTransation(ctx, &orderData, &orderDetail)
+	if err := mysql.CreateOrder(ctx, &orderData); err != nil {
+		zap.L().Error("订单创建失败", zap.Error(err))
+		return &proto.CreateOrderRep{Success: false, Message: "订单创建失败"}, nil
+	}
+
+	if err := mysql.CreateOrderDetail(ctx, &orderDetail); err != nil {
+		zap.L().Error("订单详情创建失败", zap.Error(err))
+		return &proto.CreateOrderRep{Success: false, Message: "订单详情创建失败"}, nil
+	}
+
+	return &proto.CreateOrderRep{
+		Success: true,
+		OrderId: orderId,
+		Price:   goodsDetail.Price, // 透传商品价格
+	}, nil
 }

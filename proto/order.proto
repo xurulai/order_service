@@ -10,7 +10,7 @@ option go_package = ".;proto";  // 指定生成的 Go 代码的包路径
 // Order 服务定义
 service Order {
     // 创建订单
-    rpc CreateOrder(CreateOrderReq) returns (Response);
+    rpc CreateOrder(CreateOrderReq) returns (CreateOrderRep);
 
     // 获取订单列表
     rpc OrderList(OrderListReq) returns (OrderListResp);
@@ -30,6 +30,15 @@ message CreateOrderReq {
     string address = 4;  // 收货地址
     string name = 5;     // 收货人姓名
     string phone = 6;    // 收货人电话
+}
+
+
+// 创建订单的响应消息
+message CreateOrderRep {
+    bool success = 1;          // 操作状态
+    string message = 2;        // 错误信息
+    int64 order_id = 3;        // 必须字段：订单 ID
+    string price = 4;          // 商品价格（从 GoodsDetail 透传）
 }
 
 // 查询订单列表的请求消息

@@ -10,3 +10,47 @@
 {"level":"INFO","time":"2025-02-22T18:39:05.636+0800","caller":"order_service/main.go:87","msg":"service start..."}
 {"level":"INFO","time":"2025-02-22T19:25:07.780+0800","caller":"logger/logger.go:42","msg":"init logger success"}
 {"level":"INFO","time":"2025-02-22T19:25:07.848+0800","caller":"order_service/main.go:85","msg":"service start..."}
+{"level":"INFO","time":"2025-02-24T13:58:42.796+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T13:58:43.060+0800","caller":"order_service/main.go:94","msg":"service start..."}
+{"level":"INFO","time":"2025-02-24T14:04:19.765+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T14:04:19.820+0800","caller":"order_service/main.go:94","msg":"service start..."}
+{"level":"INFO","time":"2025-02-24T14:08:11.646+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T14:09:08.243+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T14:13:52.957+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T14:14:47.225+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T14:59:58.886+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T14:59:58.966+0800","caller":"order_service/main.go:94","msg":"service start..."}
+{"level":"INFO","time":"2025-02-24T15:06:58.296+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T15:06:58.379+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-24T15:32:53.710+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T15:32:53.770+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-24T15:34:29.221+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T15:34:29.272+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-24T18:18:15.504+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T18:18:15.938+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-24T19:12:27.207+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T19:12:27.387+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-24T19:18:52.478+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T19:18:52.559+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-24T19:50:45.036+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-24T19:50:45.212+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T13:10:22.158+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T13:10:22.233+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T13:11:54.099+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T13:11:54.700+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T13:44:31.408+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T13:44:31.478+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T14:52:38.946+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T14:52:39.230+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T14:53:39.243+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T14:53:39.303+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T15:07:03.806+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T15:07:03.866+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T15:17:46.273+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T15:17:46.342+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T15:50:01.853+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T15:50:01.911+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T15:53:01.586+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T15:53:01.645+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}
+{"level":"INFO","time":"2025-02-25T15:59:06.819+0800","caller":"logger/logger.go:42","msg":"init logger success"}
+{"level":"INFO","time":"2025-02-25T15:59:06.893+0800","caller":"order_service/main.go:97","msg":"rpc server start","ip":"127.0.0.1","port":8389}

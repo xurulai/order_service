@@ -1,7 +1,7 @@
 name: "order_srv"
 mode: "dev"
 ip: "127.0.0.1"
-port: 8386
+port: 8389
 version: "v0.0.1"
 start_time: "2022-06-01"
 machine_id: 3

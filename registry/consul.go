@@ -41,14 +41,14 @@ func getOutboundIP() (net.IP, error) {
 
 // RegisterService 将gRPC服务注册到consul
 func (c *consul) RegisterService(serviceName string, ip string, port int, tags []string) error {
-	// 健康检查
 	outIp, _ := getOutboundIP()
-	fmt.Println(outIp)
+	fmt.Println(outIp.String())
+	// 健康检查
 	check := &api.AgentServiceCheck{
 		GRPC:                           fmt.Sprintf("%s:%d", outIp, port), // 这里一定是外部可以访问的地址
-		Timeout:                        "10s",
-		Interval:                       "10s",
-		DeregisterCriticalServiceAfter: "20s",
+		Timeout:                        "5s",
+		Interval:                       "5s",
+		DeregisterCriticalServiceAfter: "10s",
 	}
 	srv := &api.AgentServiceRegistration{
 		ID:      fmt.Sprintf("%s-%s-%d", serviceName, ip, port), // 服务唯一ID

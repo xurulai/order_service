@@ -19,7 +19,7 @@ type OrderSrv struct {
 // 生成订单号 查询商品信息（营销中心算价） 扣库存 生成支付信息 调用收货地址 通知商家
 // 简化版：生成订单号 查询商品信息 扣库存
 // 1. 生成订单号 2.查询商品信息 3.扣库存
-func (s *OrderSrv) CreateOrder(ctx context.Context, req *proto.CreateOrderReq) (*proto.Response, error) {
+func (s *OrderSrv) CreateOrder(ctx context.Context, req *proto.CreateOrderReq) (*proto.CreateOrderRep, error) {
 	fmt.Println("in CreateOrder ... ") // 打印进入方法的日志
 
 	// 参数处理
@@ -29,11 +29,11 @@ func (s *OrderSrv) CreateOrder(ctx context.Context, req *proto.CreateOrderReq) (
 	}
 
 	// 业务处理
-	err := order.Create(ctx, req) // 调用业务逻辑层的 Create 方法处理订单创建
+	resp, err := order.Create(ctx, req) // 调用业务逻辑层的 Create 方法处理订单创建
 	if err != nil {
 		zap.L().Error("order.Create failed", zap.Error(err)) // 记录错误日志
 		return nil, status.Error(codes.Internal, "内部错误")     // 返回 gRPC 的 Internal 错误
 	}
 
-	return &proto.Response{}, nil // 返回空响应，表示操作成功
+	return resp, nil // 返回空响应，表示操作成功
 }
