@@ -2,93 +2,216 @@ package order
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strconv"
 
+	"order_service/config"
+	"order_service/dao/mq"
 	"order_service/dao/mysql"             // 数据库操作模块
 	"order_service/model"                 // 数据模型模块
 	"order_service/proto"                 // gRPC 服务定义模块
 	"order_service/rpc"                   // RPC 客户端初始化模块
 	"order_service/third_party/snowflake" // Snowflake ID 生成模块
 
+	"github.com/apache/rocketmq-client-go/v2"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
+	"github.com/apache/rocketmq-client-go/v2/producer"
 	"go.uber.org/zap" // 日志库
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 // biz层业务代码
 // biz -> dao
 
-// 不加分布式事务实现创建订单
-func Create(ctx context.Context, param *proto.CreateOrderReq) (*proto.CreateOrderRep, error) {
+// OrderEntity 自定义结构体，实现了 RocketMQ 事务消息的两个方法：
+// 1. ExecuteLocalTransaction：本地事务执行逻辑
+// 2. CheckLocalTransaction：事务状态回查逻辑
+type OrderEntity struct {
+	OrderId int64                 // 订单ID
+	Param   *proto.CreateOrderReq // 订单请求参数
+	err     error                 // 本地事务执行过程中可能产生的错误
+}
 
-	// 1. 生成订单号
-	orderId := snowflake.GenID()
+// ExecuteLocalTransaction 是 RocketMQ 事务消息的本地事务执行逻辑。
+// 当发送事务消息（half-message）成功后，RocketMQ 会调用此方法。
+func (o *OrderEntity) ExecuteLocalTransaction(*primitive.Message) primitive.LocalTransactionState {
+	fmt.Println("in ExecuteLocalTransaction...")
 
-	// 2. 查询商品金额（营销）- RPC调用
+	// 参数校验：如果 Param 为空，说明事务消息的上下文不完整，直接返回 Rollback 状态。
+	if o.Param == nil {
+		zap.L().Error("ExecuteLocalTransaction param is nil")
+		o.err = status.Error(codes.Internal, "invalid OrderEntity")
+		return primitive.RollbackMessageState
+	}
+
+	// 获取订单请求参数
+	param := o.Param
+	ctx := context.Background()
+
+	// 1. 查询商品金额（营销）--> RPC连接 goods_service
+	// 调用 goods_service 获取商品详情，包括价格。
 	goodsDetail, err := rpc.GoodsCli.GetGoodsDetail(ctx, &proto.GetGoodsDetailReq{
 		GoodsId: param.GoodsId,
 		UserId:  param.UserId,
 	})
-	if err != nil || goodsDetail == nil {
-		zap.L().Error("商品详情获取失败", zap.Error(err), zap.Any("resp", goodsDetail))
-		return &proto.CreateOrderRep{Success: false, Message: "商品服务不可用"}, nil
-	}
-	if goodsDetail.Price == "" {
-		return &proto.CreateOrderRep{Success: false, Message: "商品价格为空"}, nil
-	}
-
-	// 3. 计算支付金额：商品单价 × 购买数量
-	// 3. 计算支付金额
-	price, err := strconv.ParseInt(goodsDetail.Price, 10, 64)
 	if err != nil {
-		zap.L().Error("价格格式错误", zap.String("price", goodsDetail.Price), zap.Error(err))
-		return &proto.CreateOrderRep{Success: false, Message: "商品价格异常"}, nil
+		// 如果查询商品失败，记录日志并返回 Rollback 状态，表示本地事务失败。
+		zap.L().Error("GoodsCli.GetGoodsDetail failed", zap.Error(err))
+		o.err = status.Error(codes.Internal, err.Error())
+		return primitive.RollbackMessageState
 	}
-	payAmount := price * int64(param.Num)
 
-	// 4. 库存校验及扣减
+	// 将价格字符串转换为整型
+	payAmountStr := goodsDetail.Price
+	payAmount, _ := strconv.ParseInt(payAmountStr, 10, 64)
+
+	// 2. 库存校验及扣减  --> RPC连接 stock_service
+	// 调用 stock_service 扣减库存。
 	_, err = rpc.StockCli.ReduceStock(ctx, &proto.ReduceStockInfo{
-		GoodsId: param.GoodsId,
-		Num:     int64(param.Num),
-		OrderId: orderId,
+		GoodsId: o.Param.GoodsId,
+		Num:     int64(o.Param.Num),
+		OrderId: o.OrderId,
 	})
+
 	if err != nil {
-		zap.L().Error("库存扣减失败", zap.Error(err))
-		return &proto.CreateOrderRep{Success: false, Message: "库存不足"}, nil
+		// 如果库存扣减失败，记录日志并返回 Rollback 状态，表示本地事务失败。
+		zap.L().Error("StockCli.ReduceStock failed", zap.Error(err))
+		o.err = status.Error(codes.Internal, "ReduceStock failed")
+		return primitive.RollbackMessageState
 	}
 
-	// 5. 创建订单，用事务把创建订单和创建订单详情两个动作包起来
+	// 代码能执行到这里说明 扣减库存成功了，
+	// 从这里开始如果本地事务执行失败就需要回滚库存
+
+	// 3. 创建订单
+	// 构建订单数据并写入 MySQL 数据库。
 	orderData := model.Order{
-		OrderId:        orderId,
+		OrderId:        o.OrderId,
 		UserId:         param.UserId,
 		PayAmount:      payAmount,
 		ReceiveAddress: param.Address,
 		ReceiveName:    param.Name,
 		ReceivePhone:   param.Phone,
+		//Status:         100, // 待支付 用于支付服务
 	}
-
 	orderDetail := model.OrderDetail{
-		OrderId:   orderId,
-		UserId:    param.UserId,
-		GoodsId:   param.GoodsId,
-		Num:       int64(param.Num),
+		OrderId: o.OrderId,
+		UserId:  param.UserId,
+		GoodsId: param.GoodsId,
+		Num:     int64(param.Num),
 		Title:     goodsDetail.Title,
-		Price:     price,
+		Price:     payAmount,
 		Brief:     goodsDetail.Brief,
 		PayAmount: payAmount,
 	}
 
-	if err := mysql.CreateOrder(ctx, &orderData); err != nil {
-		zap.L().Error("订单创建失败", zap.Error(err))
-		return &proto.CreateOrderRep{Success: false, Message: "订单创建失败"}, nil
+	// 使用事务创建订单和订单详情记录。
+	err = mysql.CreateOrderWithTransation(ctx, &orderData, &orderDetail)
+	if err != nil {
+		// 如果订单创建失败，记录日志并返回 Rollback 状态，表示本地事务失败。
+		zap.L().Error("CreateOrderWithTransation failed", zap.Error(err))
+		return primitive.CommitMessageState
 	}
 
-	if err := mysql.CreateOrderDetail(ctx, &orderDetail); err != nil {
-		zap.L().Error("订单详情创建失败", zap.Error(err))
-		return &proto.CreateOrderRep{Success: false, Message: "订单详情创建失败"}, nil
+	// 发送延迟消息，用于订单超时处理。
+	// 如果用户在一定时间内未支付，将触发库存回滚。
+	data := model.OrderDetail{
+		OrderId: o.OrderId,
+		GoodsId: param.GoodsId,
+		Num:     int64(param.Num),
+	}
+	b, _ := json.Marshal(data)
+	msg := primitive.NewMessage("xx_pay_timeout", b)
+	msg.WithDelayTimeLevel(3) // 设置延迟级别（例如 10s）
+	//同步发送延迟消息,会阻塞当前线程，知道消息发送成功或失败
+
+	//订单超时的检测通过rocketmq自带的延迟消息机制完成，在订单创建成功后，系统会发布一条延迟信息，用于在指定时间后检查订单是否超时
+	//这条消息会在设定的时间后被 RocketMQ 触发，发送到指定的消费者（例如订单服务的超时处理模块）。
+	_, err = mq.Producer.SendSync(context.Background(), msg)
+	if err != nil {
+		// 如果发送延迟消息失败，记录日志并返回 Rollback 状态。
+		zap.L().Error("send delay msg failed", zap.Error(err))
+		return primitive.CommitMessageState
 	}
 
-	return &proto.CreateOrderRep{
-		Success: true,
+	// 如果本地事务成功，返回 Commit 状态，表示事务消息可以提交。
+	return primitive.RollbackMessageState
+}
+// CheckLocalTransaction 是 RocketMQ 事务消息的状态回查逻辑。
+// 当 RocketMQ 在发送事务消息后未收到明确的提交或回滚响应时，会调用此方法回查本地事务的状态。
+func (o *OrderEntity) CheckLocalTransaction(*primitive.MessageExt) primitive.LocalTransactionState {
+	// 查询订单是否创建成功。
+	_, err := mysql.QueryOrder(context.Background(), o.OrderId)
+	if err == gorm.ErrRecordNotFound {
+		// 如果订单未创建成功，返回 Commit 状态，表示需要回滚库存。
+		return primitive.CommitMessageState
+	}
+	// 如果订单已创建成功，返回 Rollback 状态，表示不需要回滚库存。
+	return primitive.RollbackMessageState
+}
+
+
+// 不加分布式事务实现创建订单
+func Create(ctx context.Context, param *proto.CreateOrderReq) (*proto.Response, error) {
+
+	// 1. 生成订单号
+	orderId := snowflake.GenID()
+
+	//创建OrderEntity实例，用于事务消息的上下文
+	orderEntity := &OrderEntity{
 		OrderId: orderId,
-		Price:   goodsDetail.Price, // 透传商品价格
-	}, nil
+		Param:   param,
+	}
+
+	//创建事务生产者
+	p, err := rocketmq.NewTransactionProducer(
+		orderEntity, // 将 OrderEntity 作为事务消息的上下文
+		producer.WithNsResolver(primitive.NewPassthroughResolver([]string{"127.0.0.1:9876"})), // 配置 RocketMQ 名称服务器地址
+		producer.WithRetry(2),                 // 设置重试次数
+		producer.WithGroupName("order_srv_1"), // 设置生产者组名
+	)
+	if err != nil {
+		// 如果创建事务生产者失败，记录日志并返回错误。
+		zap.L().Error("NewTransactionProducer failed", zap.Error(err))
+		return nil,status.Error(codes.Internal, "NewTransactionProducer failed")
+	}
+	// 启动事务生产者
+	p.Start()
+
+	//构造事务消息的内容
+	data := model.OrderDetail{
+		OrderId: orderId,
+		GoodsId: param.GoodsId,
+		Num:     int64(param.Num),
+	}
+
+	b, _ := json.Marshal(data)
+	//构造消息
+	msg := &primitive.Message{
+		Topic: config.Conf.RocketMqConfig.Topic.StockRollback, // 事务消息的主题，用于库存回滚
+		Body:  b,
+	}
+
+	//发送事务消息
+	res, err := p.SendMessageInTransaction(ctx, msg)
+	if err != nil {
+		// 如果发送事务消息失败，记录日志并返回错误。
+		zap.L().Error("SendMessageInTransaction failed", zap.Error(err))
+		return nil,status.Error(codes.Internal, "create order failed")
+	}
+	// 根据事务消息的响应状态判断订单创建是否成功
+	if res.State == primitive.CommitMessageState {
+		// 如果事务消息被提交，说明本地事务失败，返回错误。
+		return nil,status.Error(codes.Internal, "create order failed")
+	}
+	// 如果本地事务成功，但事务消息被丢弃，则订单创建成功。
+	if orderEntity.err != nil {
+		// 如果本地事务执行过程中有错误，返回错误。
+		return nil, orderEntity.err
+	}
+	return &proto.Response{}, nil
+
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"order_service/config"
+	"order_service/dao/mq"
 	"order_service/dao/mysql"
 	"order_service/dao/redis"
 	"order_service/handler"
@@ -20,6 +21,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"github.com/apache/rocketmq-client-go/v2"
+	"github.com/apache/rocketmq-client-go/v2/consumer"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
 )
 
 func main() {
@@ -54,6 +58,26 @@ func main() {
 	}
 	// 6. 初始化snowflake
 	err = snowflake.Init(config.Conf.StartTime, config.Conf.MachineID)
+	if err != nil {
+		panic(err)
+	}
+	// 7. 初始化rocketmq
+	err = mq.Init()
+	if err != nil {
+		panic(err)
+	}
+	// 监听订单超时的消息
+	c, _ := rocketmq.NewPushConsumer(
+		consumer.WithGroupName("order_srv_1"),
+		consumer.WithNsResolver(primitive.NewPassthroughResolver([]string{"127.0.0.1:9876"})),
+	)
+	// 订阅topic
+	err = c.Subscribe("xx_pay_timeout", consumer.MessageSelector{}, handler.OrderTimeouthandle)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	// Note: start after subscribe
+	err = c.Start()
 	if err != nil {
 		panic(err)
 	}
