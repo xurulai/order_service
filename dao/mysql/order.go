@@ -5,6 +5,7 @@ import (
 	"log"
 	"order_service/errno"
 	"order_service/model"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -55,11 +56,11 @@ func CreateOrderWithTransation(ctx context.Context, order *model.Order, orderDet
 		})
 }
 
-func UpdateOrderStatus(ctx context.Context, order *model.Order) error {
+func UpdateOrderStatus(ctx context.Context, order *model.OrderDetail) error {
 	// 使用 gorm 的 WithContext 方法，将上下文传递给数据库操作
 	result := db.WithContext(ctx).
 		// 指定操作的模型，这里操作的是 model.Order 表
-		Model(&model.Order{}).
+		Model(&model.OrderDetail{}).
 		// 指定更新条件，根据 order_id 更新
 		Where("order_id = ?", order.OrderId).
 		// 更新订单状态
@@ -81,4 +82,75 @@ func UpdateOrderStatus(ctx context.Context, order *model.Order) error {
 
 	// 更新成功，返回 nil
 	return nil
+}
+
+
+// GetMinOrderIdAfterTime 获取指定时间后的最小订单ID
+func GetMinOrderIdAfterTime(ctx context.Context, timestamp time.Time) (int64, error) {
+	var minID int64
+	err := db.WithContext(ctx).
+		Model(&model.Order{}).
+		Where("created_at > ?", timestamp).
+		Select("MIN(id)").
+		Row().
+		Scan(&minID)
+	if err != nil {
+		return 0, err
+	}
+	return minID, nil
+}
+
+// GetShardParams 获取订单ID分片参数，只针对大于minOrderId的订单
+// GetShardParams 获取订单ID分片参数，只针对大于minOrderId的订单
+func GetShardParams(ctx context.Context, minOrderId int64) ([]model.ShardParam, error) {
+	// 查询订单表中大于minOrderId的最小和最大ID
+	var minID, maxID int64
+	err := db.WithContext(ctx).
+		Model(&model.Order{}).
+		Where("id > ?", minOrderId).
+		Select("MIN(id), MAX(id)").
+		Row().
+		Scan(&minID, &maxID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果没有符合条件的订单，返回空分片
+	if minID == 0 && maxID == 0 {
+		return nil, nil
+	}
+
+	// 计算分片数量
+	shardCount := int64(10) // 将 shardCount 转换为 int64
+	totalRange := maxID - minID + 1
+	shardSize := totalRange / shardCount
+
+	var shardParams []model.ShardParam
+	for i := int64(0); i < shardCount; i++ {
+		startID := minID + i*shardSize
+		endID := minID + (i+1)*shardSize - 1
+		if i == shardCount-1 {
+			endID = maxID
+		}
+		shardParams = append(shardParams, model.ShardParam{
+			StartID: startID,
+			EndID:   endID,
+			ShardID: int(i),
+		})
+	}
+
+	return shardParams, nil
+}
+
+// QueryTimeoutOrdersByShard 按分片查询超时未支付的订单
+func QueryTimeoutOrdersByShard(ctx context.Context, startID, endID int64, timeoutTime time.Time) ([]model.OrderDetail, error) {
+	var orders []model.OrderDetail
+	err := db.WithContext(ctx).
+		Where("id BETWEEN ? AND ? AND status = ? AND created_at < ?", startID, endID, "unpaid", timeoutTime).
+		Find(&orders).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return orders, nil
 }

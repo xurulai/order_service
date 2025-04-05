@@ -33,6 +33,7 @@ type OrderEntity struct {
 	OrderId int64                 // 订单ID
 	Param   *proto.CreateOrderReq // 订单请求参数
 	Topic  string                // 事务消息的主题
+	RetryCount int64			 //重试次数
 	err     error                 // 本地事务执行过程中可能产生的错误
 }
 
@@ -54,7 +55,7 @@ func Create(ctx context.Context, param *proto.CreateOrderReq) (*proto.Response, 
 	p, err := rocketmq.NewTransactionProducer(
 		orderEntity, // 将 OrderEntity 作为事务消息的上下文
 		producer.WithNsResolver(primitive.NewPassthroughResolver([]string{"127.0.0.1:9876"})), // 配置 RocketMQ 名称服务器地址
-		producer.WithRetry(2),                 // 设置重试次数
+		producer.WithRetry(3),                 // 设置重试次数
 		producer.WithGroupName("order_srv_1"), // 设置生产者组名
 	)
 	if err != nil {
@@ -191,6 +192,7 @@ func (o *OrderEntity) ExecuteLocalTransaction(*primitive.Message) primitive.Loca
 		_, errSend := mq.Producer.SendSync(context.Background(), msg)
 		if errSend != nil {
 			zap.L().Error("send order_failed msg failed", zap.Error(errSend))
+			
 		}
 		zap.L().Error("CreateOrderWithTransation failed", zap.Error(err))
 		return primitive.RollbackMessageState
@@ -233,12 +235,12 @@ func (o *OrderEntity) ExecuteLocalTransaction(*primitive.Message) primitive.Loca
 	// 如果本地事务成功，发送一条状态为“order_success”的消息
 	o.Topic = config.Conf.RocketMqConfig.Topic.CreateOderSuccessfully
 	msgSuccess := primitive.NewMessage(o.Topic, []byte(fmt.Sprintf(`{"orderId":%d,"status":"success"}`, o.OrderId)))
-	_, errSuccess := mq.Producer.SendSync(context.Background(), msgSuccess)
-	if errSuccess != nil {
-		zap.L().Error("send order_success msg failed", zap.Error(errSuccess))
-		return primitive.RollbackMessageState
-	}
-
+	_, err = mq.Producer.SendSync(context.Background(), msgSuccess)
+	if err != nil {
+		zap.L().Error("send order success msg failed", zap.Error(err))
+		
+			return primitive.RollbackMessageState
+		}
 	// 如果本地事务成功，返回 Commit 状态，表示事务消息可以提交。
 	return primitive.CommitMessageState
 }
