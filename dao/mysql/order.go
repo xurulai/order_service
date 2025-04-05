@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"log"
+	"order_service/errno"
 	"order_service/model"
 
 	"gorm.io/gorm"
@@ -51,4 +53,32 @@ func CreateOrderWithTransation(ctx context.Context, order *model.Order, orderDet
 			// 返回 nil 提交事务
 			return nil
 		})
+}
+
+func UpdateOrderStatus(ctx context.Context, order *model.Order) error {
+	// 使用 gorm 的 WithContext 方法，将上下文传递给数据库操作
+	result := db.WithContext(ctx).
+		// 指定操作的模型，这里操作的是 model.Order 表
+		Model(&model.Order{}).
+		// 指定更新条件，根据 order_id 更新
+		Where("order_id = ?", order.OrderId).
+		// 更新订单状态
+		Updates(map[string]interface{}{
+			"status": order.Status,
+		})
+
+	// 检查更新是否成功
+	if result.Error != nil {
+		log.Printf("Failed to update order status: %v", result.Error)
+		return errno.ErrUpdateFailed
+	}
+
+	// 如果没有行被更新，返回错误
+	if result.RowsAffected == 0 {
+		log.Printf("No rows affected for orderId: %d", order.OrderId)
+		return errno.ErrOrderNotFound
+	}
+
+	// 更新成功，返回 nil
+	return nil
 }

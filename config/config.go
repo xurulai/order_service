@@ -81,6 +81,8 @@ type RocketMqConfig struct {
 	Topic   struct {
 		PayTimeOut    string `mapstructure:"pay_timeout"`
 		StockRollback string `mapstructure:"stock_rollback"`
+		CreateOrder   string `mapstrcuture:"create_order"`
+		CreateOderSuccessfully string `mapstrcuture:"create order successfully"`
 	} `mapstructure:"topic"`
 }
 

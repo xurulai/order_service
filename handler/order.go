@@ -2,16 +2,10 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"order_service/biz/order"
-	"order_service/dao/mysql"
-	"order_service/model"
 	"order_service/proto"
-	"order_service/rpc"
 
-	"github.com/apache/rocketmq-client-go/v2/consumer"
-	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -42,46 +36,4 @@ func (s *OrderSrv) CreateOrder(ctx context.Context, req *proto.CreateOrderReq) (
 	}
 
 	return resp, nil // 返回空响应，表示操作成功
-}
-
-// OrderTimeouthandle 是处理订单超时消息的回调函数
-func OrderTimeouthandle(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-	for _, msg := range msgs {
-		// 解析消息内容
-		var orderDetail model.OrderDetail
-		err := json.Unmarshal(msg.Body, &orderDetail)
-		if err != nil {
-			zap.L().Error("Failed to unmarshal order detail", zap.Error(err))
-			return consumer.ConsumeRetryLater, err
-		}
-
-		// 查询订单状态
-		order, err := mysql.QueryOrder(context.Background(), orderDetail.OrderId)
-		if err != nil {
-			zap.L().Error("Failed to query order", zap.Error(err), zap.Int64("OrderId", orderDetail.OrderId))
-			return consumer.ConsumeRetryLater, err
-		}
-
-		// 判断订单是否超时
-		if order.Status == '2' { // 假设订单状态为“未支付”
-			// 执行超时处理逻辑
-			// 1. 回滚库存
-			_,err = rpc.StockCli.RollbackStock(context.Background(), &proto.ReduceStockInfo{
-				GoodsId: orderDetail.GoodsId,
-				Num:     orderDetail.Num,
-				OrderId: orderDetail.OrderId,
-			})
-			if err != nil {
-				zap.L().Error("Failed to rollback stock", zap.Error(err), zap.Int64("OrderId", orderDetail.OrderId))
-				return consumer.ConsumeRetryLater, err
-			}
-
-			// 2. 发送超时通知（可选）
-			// utils.SendOrderTimeoutNotification(orderDetail.OrderId)
-		} else {
-			zap.L().Info("Order already processed, ignoring timeout message", zap.Int64("OrderId", orderDetail.OrderId))
-		}
-	}
-
-	return consumer.ConsumeSuccess, nil
 }
